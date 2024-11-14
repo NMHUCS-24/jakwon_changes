@@ -32,10 +32,7 @@ class Ship(sprite.Sprite):
 		self.speed = 5
 
 	def update(self, keys, *args):
-		if keys[K_LEFT] and self.rect.x > 10:
-			self.rect.x -= self.speed
-		if keys[K_RIGHT] and self.rect.x < 740:
-			self.rect.x += self.speed
+		# Removed testing keys so we cannot minipulate the ship
 		game.screen.blit(self.image, self.rect)
 	def move_left(self):
 		if self.rect.x > 10:
@@ -126,8 +123,6 @@ class Enemy(sprite.Sprite):
 
 			self.timer += self.moveTime
 		game.screen.blit(self.image, self.rect)
-		if self.rect.y > 600:
-			self.kill()
 
 	def check_column_deletion(self, killedRow, killedColumn, killedArray):
 		if killedRow != -1 and killedColumn != -1:
@@ -191,7 +186,7 @@ class Mystery(sprite.Sprite):
 		self.image = transform.scale(self.image, (75, 35))
 		self.rect = self.image.get_rect(topleft=(-80, 45))
 		self.row = 5
-		self.moveTime = 25000
+		self.moveTime = 0   # changed move time to 0 so when game starts the ufo is visbal at all times costantly moving across the sreen.
 		self.direction = 1
 		self.timer = time.get_ticks()
 		self.mysteryEntered = mixer.Sound('sounds/mysteryentered.wav')
@@ -491,7 +486,7 @@ class SpaceInvaders(object):
 				  2: 20,
 				  3: 10,
 				  4: 10,
-				  5: 150 # choice([50, 100, 150, 300])
+				  5: choice([50, 100, 150, 300])
 				 }
 					  
 		score = scores[row]
@@ -500,7 +495,7 @@ class SpaceInvaders(object):
 	def get_state(self, factor):
 		width = mth.floor(800/factor)
 		height = mth.floor(600/factor)
-		state_array = np.zeros([width,height],dtype=np.int)
+		state_array = np.zeros([width,height],dtype=np.int32)
 		for spr in self.allSprites.sprites():
 			x = mth.floor(spr.rect.center[0] / factor)-1
 			y = mth.floor(spr.rect.center[1] / factor)-1
@@ -635,7 +630,17 @@ class SpaceInvaders(object):
 			self.shipAlive = True
 
 	def create_game_over(self, currentTime):
-		self.mainScreen = True
+		self.screen.blit(self.background, (0,0))
+		if currentTime - self.timer < 750:
+			self.gameOverText.draw(self.screen)
+		if currentTime - self.timer > 750 and currentTime - self.timer < 1500:
+			self.screen.blit(self.background, (0,0))
+		if currentTime - self.timer > 1500 and currentTime - self.timer < 2250:
+			self.gameOverText.draw(self.screen)
+		if currentTime - self.timer > 2250 and currentTime - self.timer < 2750:
+			self.screen.blit(self.background, (0,0))
+		if currentTime - self.timer > 3000:
+			self.mainScreen = True
 		
 		for e in event.get():
 			if e.type == QUIT:
@@ -699,10 +704,7 @@ class SpaceInvaders(object):
 
 					if len(self.enemies) > 0:
 						self.make_enemies_shoot()
-					else:
-						self.gameOver = True
-						self.startGame = False
-
+	
 			elif self.gameOver:
 				currentTime = time.get_ticks()
 				# Reset enemy starting position
@@ -719,8 +721,8 @@ class SpaceInvaders(object):
 				
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser()
-	parser.add_argument('-i','--iterations',type=int, required=True)
-	args = parser.parse_args()
+	#parser = argparse.ArgumentParser()
+	#parser.add_argument('-i','--iterations',type=int, required=True)
+	#args = parser.parse_args()
 	game = SpaceInvaders()
-	game.main(args.iterations)
+	game.main(3)
