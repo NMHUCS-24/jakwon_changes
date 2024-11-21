@@ -475,7 +475,9 @@ class SpaceInvaders(object):
 				  2: -20,
 				  3: -10,
 				  4: -10,
-				  5: -150 #choice([50, 100, 150, 300])
+				  5: -150, #choice([50, 100, 150, 300])
+				  6: 10,
+				  7: 200
 				 }
 					  
 		score = scores[row]
@@ -608,7 +610,9 @@ class SpaceInvaders(object):
 		if blockerdict:
 			for value in blockerdict.values():
 				for value in value:
-					self.score += 10 #adds 10 point if blocker is hit
+					score = self.calculate_score(6)
+		#			self.score += 10 #adds 10 point if blocker is hit
+
 
 		if sprite.groupcollide(self.enemies, self.playerGroup, True, True):
 			self.gameOver = True
@@ -722,3 +726,4 @@ if __name__ == '__main__':
 	#args = parser.parse_args()
 	game = SpaceInvaders()
 	game.main(3)
+
