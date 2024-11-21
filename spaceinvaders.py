@@ -163,6 +163,7 @@ class Enemy(sprite.Sprite):
 		self.images.append(transform.scale(img2, (40, 35)))
 
 
+
 class Blocker(sprite.Sprite):
 	def __init__(self, size, color, row, column):
 	   sprite.Sprite.__init__(self)
@@ -468,18 +469,19 @@ class SpaceInvaders(object):
 		self.enemies = enemies
 		self.allSprites = sprite.Group(self.player, self.enemies, self.livesGroup, self.mysteryShip)
 
-	def calculate_score(self, row):
-		scores = {0: 30,
-				  1: 20,
-				  2: 20,
-				  3: 10,
-				  4: 10,
-				  5: choice([50, 100, 150, 300])
+	def calculate_score(self, row): #scoring for if an enemy dies, you lose points
+		scores = {0: -30,
+				  1: -20,
+				  2: -20,
+				  3: -10,
+				  4: -10,
+				  5: -150 #choice([50, 100, 150, 300])
 				 }
 					  
 		score = scores[row]
 		self.score += score
 		return score
+
 	def get_state(self, factor):
 		width = mth.floor(800/factor)
 		height = mth.floor(600/factor)
@@ -601,6 +603,13 @@ class SpaceInvaders(object):
 					self.shipTimer = time.get_ticks()
 					self.shipAlive = False
 
+		#add points if blocker is hit
+		blockerdict = sprite.groupcollide(self.bullets, self.allBlockers, True, True)
+		if blockerdict:
+			for value in blockerdict.values():
+				for value in value:
+					self.score += 10 #adds 10 point if blocker is hit
+
 		if sprite.groupcollide(self.enemies, self.playerGroup, True, True):
 			self.gameOver = True
 			self.startGame = False
@@ -608,6 +617,8 @@ class SpaceInvaders(object):
 		sprite.groupcollide(self.bullets, self.allBlockers, True, True)
 		sprite.groupcollide(self.enemyBullets, self.allBlockers, True, True)
 		sprite.groupcollide(self.enemies, self.allBlockers, False, True)
+
+
 
 	def create_new_ship(self, createShip, currentTime):
 		if createShip and (currentTime - self.shipTimer > 900):
