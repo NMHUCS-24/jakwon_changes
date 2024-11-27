@@ -163,7 +163,6 @@ class Enemy(sprite.Sprite):
 		self.images.append(transform.scale(img2, (40, 35)))
 
 
-
 class Blocker(sprite.Sprite):
 	def __init__(self, size, color, row, column):
 	   sprite.Sprite.__init__(self)
@@ -301,6 +300,11 @@ class SpaceInvaders(object):
 	def __init__(self):
 		mixer.pre_init(44100, -16, 1, 512)
 		init()
+		self.player = None 
+		self.enemies = sprite.Group()
+		self.mysteryBullets = sprite.Group()
+		self.mysteryActive = False
+		self.mysteryTimer = 0
 		self.caption = display.set_caption('Space Invaders')
 		self.screen = SCREEN
 		self.background = image.load('images/background.jpg').convert()
@@ -313,6 +317,14 @@ class SpaceInvaders(object):
 		self.enemyPositionStart = self.enemyPositionDefault
 		# Current enemy starting position
 		self.enemyPosition = self.enemyPositionStart
+
+	def start_mystery_ship(self):
+		if not self.mysteryActive and random.random() < 0.1:
+			self.mystery = Mystery()
+			self.mysteryActive = True 
+			self.mysteryTimer = time.get_ticks()
+			self.allSprites.add(self.mystery)
+			self.mysteryGroup.add(self.mystery)
 
 	def reset(self, score, lives, newGame=False):
 		self.player = Ship()
@@ -472,6 +484,11 @@ class SpaceInvaders(object):
 				self.bullets.add(rightbullet)
 				self.allSprites.add(self.bullets)
 				self.sounds["shoot2"].play()
+		if len(self.mysteryBullets) == 0 and self.mysteryActive:
+			mystery_bullet = Bullet(self.mysteryShip.rect.x + 40, self.mysteryShip.rect.y + 40, 1, 10, "mystery_laser", "center")
+			self.mysteryBullets.add(mystery_bullet)
+			self.allSprites.add(self.mysteryBullets)
+			self.sounds["mysteryshoot"].play()
 	def make_enemies(self):
 		enemies = sprite.Group()
 		for row in range(5):
@@ -483,22 +500,156 @@ class SpaceInvaders(object):
 		
 		self.enemies = enemies
 		self.allSprites = sprite.Group(self.player, self.enemies, self.livesGroup, self.mysteryShip)
+	def check_collisions(self):
+		collidedict = sprite.groupcollide(self.bullets, self.enemyBullets, True, False)
+		if collidedict:
+			for value in collidedict.values():
+				for currentSprite in value:
+					self.enemyBullets.remove(currentSprite)
+					self.allSprites.remove(currentSprite)
 
-	def calculate_score(self, row): #scoring for if an enemy dies, you lose points
-		scores = {0: -30,
-				  1: -20,
-				  2: -20,
-				  3: -10,
-				  4: -10,
-				  5: -150, #choice([50, 100, 150, 300])
-				  6: 10,
-				  7: 200
+		enemiesdict = sprite.groupcollide(self.bullets, self.enemies, True, False)
+		if enemiesdict:
+			for value in enemiesdict.values():
+				for currentSprite in value:
+					self.sounds["invaderkilled"].play()
+					self.killedRow = currentSprite.row
+					self.killedColumn = currentSprite.column
+					score = self.calculate_score(currentSprite.row)
+					explosion = Explosion(currentSprite.rect.x, currentSprite.rect.y, currentSprite.row, False, False, score)
+					self.explosionsGroup.add(explosion)
+					self.allSprites.remove(currentSprite)
+					self.enemies.remove(currentSprite)
+					self.gameTimer = time.get_ticks()
+					break
+
+		mysterydict = sprite.groupcollide(self.bullets, self.mysteryGroup, True, True)
+		if mysterydict:
+			for value in mysterydict.values():
+				for currentSprite in value:
+					currentSprite.mysteryEntered.stop()
+					self.sounds["mysterykilled"].play()
+					score = self.calculate_score(currentSprite.row)
+					explosion = Explosion(currentSprite.rect.x, currentSprite.rect.y, currentSprite.row, False, True, score)
+					self.explosionsGroup.add(explosion)
+					self.allSprites.remove(currentSprite)
+					self.mysteryGroup.remove(currentSprite)
+					newShip = Mystery()
+					self.allSprites.add(newShip)
+					self.mysteryGroup.add(newShip)
+					break
+
+		playerHit = sprite.groupcollide(self.mysteryBullets, self.playerGroup, True, False)
+		if playerHit:
+			for bullet in playerHit.value():
+				for playerShip in bullet:
+					self.sounds["shipexplosion"].play()
+					explosion = Explosion(playerShip.rect.x, playerShip.rect.y, 0, True, False, 0)
+					self.explosionsGroup.add(explosion)
+					self.allSprites.remove(playerShip)
+					self.playerGroup.remove(playerShip)
+					self.makeNewShip = True 
+					self.shipTimer = time.get_ticks()
+					self.shipAlive = False
+					break
+
+		bulletsdict = sprite.groupcollide(self.enemyBullets, self.playerGroup, True, False)
+		if bulletsdict:
+			for value in bulletsdict.values():
+				for playerShip in value:
+					if self.lives == 5:
+						self.lives -= 1
+						self.livesGroup.remove(self.life3)
+						self.allSprites.remove(self.life3)
+					elif self.lives == 2:
+						self.lives -= 1
+						self.livesGroup.remove(self.life2)
+						self.allSprites.remove(self.life2)
+					elif self.lives == 1:
+						self.lives -= 1
+						self.livesGroup.remove(self.life1)
+						self.allSprites.remove(self.life1)
+						self.gameOver = True
+						self.startGame = False
+
+					self.sounds["shipexplosion"].play()
+					explosion = Explosion(playerShip.rect.x, playerShip.rect.y, 0, True, False, 0)
+					self.explosionsGroup.add(explosion)
+					self.allSprites.remove(playerShip)
+					self.playerGroup.remove(playerShip)
+					self.makeNewShip = True
+					self.shipTimer = time.get_ticks()
+					self.shipAlive = False
+					break
+
+	def	mystery_bullet_hits(self):
+		if mystery_bullet_hits:
+			for bullet in mystery_bullet_hits:
+				self.sounds["shipexplosion"].play()
+				explosion = Explosion(self.player.rect.x, self.player.rect.y, 0, True, False, 0)
+				self.explosionsGroup.add(explosion)
+				self.allSprites.remove(self.player)
+				self.playerGroup.remove(self.player)
+				self.lives -= 1
+				if self.lives <= 0:
+					self.gameOver = True 
+				self.shipAlive = False
+				self.makeNewShip = True 
+				self.shipTimer = time.get_ticks()
+
+		if sprite.groupcollide(self.enemies, self.playerGroup, True, True):
+			self.gameOver = True
+			self.startGame = False
+
+		sprite.groupcollide(self.bullets, self.allBlockers, True, True)
+		sprite.groupcollide(self.enemyBullets, self.allBlockers, True, True)
+		sprite.groupcollide(self.enemies, self.allBlockers, False, True)
+
+		mysterydict = sprite.groupcollide(self.mysteryBullets, self.playerGroup, True, False)
+		if mysterydict:
+			for value in mysterydict.values():
+				for playerShip in value:
+					if self.lives == 5:
+						self.lives -= 1
+						self.livesGroup.remove(self.life3)
+						self.allSprites.remove(self.life3)
+					elif self.lives == 2:
+						self.lives -= 1
+						self.livesGroup.remove(self.life2)
+						self.allSprites.remove(self.life2)
+					elif self.lives == 1:
+						self.lives -= 1
+						self.livesGroup.remove(self.life1)
+						self.allSprites.remove(self.life1)
+						self.gameOver = True
+						self.startGame = False
+
+					self.sounds["shipexplosion"].play()
+					explosion = Explosion(playerShip.rect.x, playerShip.rect.y, 0, True, False, 0)
+					self.explosionsGroup.add(explosion)
+					self.allSprites.remove(playerShip)
+					self.playerGroup.remove(playerShip)
+					self.makeNewShip = True
+					self.shipTimer = time.get_ticks()
+					self.shipAlive = False
+
+		sprite.groupcollide(self.mysteryBullets, self.allBlockers, True, True)
+
+
+
+
+	def calculate_score(self, row):
+		scores = {0: 30,
+				  1: 20,
+				  2: 20,
+				  3: 10,
+				  4: 10,
+				  5: choice([50, 100, 150, 300])
 				 }
 					  
 		score = scores[row]
 		self.score += score
 		return score
-
 	def get_state(self, factor):
 		width = mth.floor(800/factor)
 		height = mth.floor(600/factor)
@@ -620,15 +771,6 @@ class SpaceInvaders(object):
 					self.shipTimer = time.get_ticks()
 					self.shipAlive = False
 
-		#add points if blocker is hit
-		blockerdict = sprite.groupcollide(self.bullets, self.allBlockers, True, True)
-		if blockerdict:
-			for value in blockerdict.values():
-				for value in value:
-					score = self.calculate_score(6)
-		#			self.score += 10 #adds 10 point if blocker is hit
-
-
 		if sprite.groupcollide(self.enemies, self.playerGroup, True, True):
 			self.gameOver = True
 			self.startGame = False
@@ -636,8 +778,6 @@ class SpaceInvaders(object):
 		sprite.groupcollide(self.bullets, self.allBlockers, True, True)
 		sprite.groupcollide(self.enemyBullets, self.allBlockers, True, True)
 		sprite.groupcollide(self.enemies, self.allBlockers, False, True)
-
-
 
 	def create_new_ship(self, createShip, currentTime):
 		if createShip and (currentTime - self.shipTimer > 900):
@@ -683,6 +823,10 @@ class SpaceInvaders(object):
 				self.mainScreen = False
 
 			elif self.startGame:
+				if self.mysteryActive:
+					if time.get_ticks() - self.mysteryTimer > 2000:
+						self.fire_mystery_bullet()
+						self.mysteryTimer = time.get_ticks()
 				if len(self.enemies) == 0:
 					currentTime = time.get_ticks()
 					if currentTime - self.gameTimer < 3000:              
@@ -741,4 +885,3 @@ if __name__ == '__main__':
 	#args = parser.parse_args()
 	game = SpaceInvaders()
 	game.main(3)
-
